@@ -1,28 +1,24 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
-const farmerSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema({
   fullName: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true, select: false },
   phoneNumber: { type: String, required: true },
-  farmName: { type: String, required: true },
-  farmLocation: { type: String, required: true },
-  crops: [{ type: String }],
+  role: { type: String, default: 'buyer' },
   profilePicture: { type: String },
-  verificationDocs: { type: String },
-  role: { type: String, default: 'farmer' },
 });
 
-farmerSchema.pre('save', async function (next) {
+userSchema.pre('save', async function (next) {
   if (this.isModified('password')) {
     this.password = await bcrypt.hash(this.password, 10);
   }
   next();
 });
 
-farmerSchema.methods.comparePassword = async function (password) {
+userSchema.methods.comparePassword = async function (password) {
   return await bcrypt.compare(password, this.password);
 };
 
-module.exports = mongoose.model('Farmer', farmerSchema);
+module.exports = mongoose.model('User', userSchema);

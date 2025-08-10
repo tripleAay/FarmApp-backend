@@ -1,30 +1,52 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const cors = require('cors');
-const path = require('path');
-const connectDB = require('./src/config/db');
-const farmerRoutes = require('./src/routes/farmerRoutes'); // fix this
-require('dotenv').config(); // fix this
+const authRoutes = require('./src/routes/auth'); // Corrected from authRoutes
+require('dotenv').config();
+const multer = require('multer');
 
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Serve static files (uploads)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Enable CORS for http://localhost:3000
+app.use(cors({
+  origin: 'http://localhost:3000',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 
 // Connect to MongoDB
-connectDB();
+mongoose.connect(process.env.MONGO_URI, {})
+  .then(() => console.log('Connected to MongoDB'))
+  .catch((err) => console.error('MongoDB connection error:', err));
 
-// Routes
-app.use('/api', farmerRoutes);
+// Middleware to parse JSON bodies
+app.use(express.json());
 
-// Error handler
+// Serve static files from Uploads folder
+app.use('/Uploads', express.static('Uploads'));
+
+// Mount auth routes under /api
+app.use('/api', authRoutes);
+
+// Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  console.error('Server Error:', {
+    message: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+  });
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({ error: `Multer error: ${err.message}` });
+  }
+  if (err.message === 'Invalid file type. Only JPEG, PNG, and PDF are allowed.') {
+    return res.status(400).json({ error: err.message });
+  }
+  res.status(500).json({ error: `Internal server error: ${err.message}` });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
