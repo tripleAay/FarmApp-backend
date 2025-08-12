@@ -1,6 +1,8 @@
 const Farmer = require('../models/Farmer');
 const Order = require('../models/Order');
 const Product = require('../models/Products');
+const User = require("../models/User");
+
 
 exports.getFarmerProfile = async (req, res) => {
     try {
@@ -30,7 +32,6 @@ exports.getFarmerProfile = async (req, res) => {
     }
 };
 
-// Currency formatter for ₦
 const formatCurrency = (amount) => {
     return `₦${Number(amount || 0).toLocaleString("en-NG", {
         minimumFractionDigits: 0,
@@ -107,4 +108,53 @@ exports.getFarmerStats = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+
+exports.getFarmerOrders = async (req, res) => {
+    try {
+        const farmerId = req.params.farmerId;
+
+        if (!farmerId) {
+            return res.status(400).json({ message: "Farmer ID is required" });
+        }
+
+        // Find all products that belong to this farmer
+        const farmerProducts = await Product.find({ farmerId }).select("_id");
+        const farmerProductIds = farmerProducts.map(p => p._id.toString());
+
+        if (farmerProductIds.length === 0) {
+            return res.json({ orders: [] });
+        }
+
+        // Find all orders that contain at least one product from this farmer
+        const orders = await Order.find({
+            "products.productId": { $in: farmerProductIds }
+        })
+            .populate("userId", "name") // buyer's name
+            .sort({ orderedDate: -1 });
+
+        // Format the response
+        const formattedOrders = orders.map(order => {
+            const farmerItems = order.products.filter(p =>
+                farmerProductIds.includes(p.productId.toString())
+            );
+
+            return farmerItems.map(item => ({
+                product: item.productName,
+                buyer: order.userId?.name || "N/A",
+                quantity: item.quantity,
+                totalPrice: `₦${(item.price * item.quantity).toLocaleString("en-NG")}`,
+                orderDate: order.orderedDate,
+                status: order.status || "Pending"
+            }));
+        }).flat();
+
+        res.json({ orders: formattedOrders });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
 

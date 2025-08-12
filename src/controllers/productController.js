@@ -207,22 +207,46 @@ exports.updateProduct = async (req, res) => {
 
 
 
-exports.updateMissingQuantities = async (req, res) => {
+exports.updateMissingReviews = async (req, res) => {
   try {
+    const defaultReviews = [
+      {
+        reviewer: "John Doe",
+        rating: 5,
+        comment: "Excellent product! High quality and fast delivery.",
+        date: new Date()
+      },
+      {
+        reviewer: "Jane Smith",
+        rating: 4,
+        comment: "Very good product, just a little improvement needed on packaging.",
+        date: new Date()
+      }
+    ];
+
     const result = await Products.updateMany(
-      { quantity: { $exists: false } }, // products without quantity field
-      { $set: { quantity: "1 box" } }         // set quantity to 0
+      {
+        $or: [
+          { reviews: { $exists: false } },   // reviews field doesn't exist
+          { reviews: null },                 // null value
+          { reviews: { $size: 0 } }          // empty array
+        ]
+      },
+      { $set: { reviews: defaultReviews } }
     );
+
     res.status(200).json({
-      message: 'Missing quantities updated successfully',
+      message: 'Missing reviews added successfully',
       matchedCount: result.matchedCount,
       modifiedCount: result.modifiedCount,
     });
   } catch (error) {
-    console.error('Error updating missing quantities:', error);
+    console.error('Error updating missing reviews:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+
 
 
 
