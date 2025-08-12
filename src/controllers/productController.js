@@ -333,6 +333,39 @@ exports.updateCartQuantity = async (req, res) => {
   }
 };
 
+exports.removeFromCart = async (req, res) => {
+  try {
+    const { userId, productId } = req.params;
+
+    // Find the cart for the user
+    let cart = await Order.findOne({ userId });
+    if (!cart) {
+      return res.status(400).json({ message: "Cart not found" });
+    }
+
+    // Find the product in the cart
+    const itemIndex = cart.products.findIndex(
+      p => p.productId.toString() === productId
+    );
+
+    if (itemIndex === -1) {
+      return res.status(400).json({ message: "Product not found in cart" });
+    }
+
+    // Reduce quantity or remove
+    cart.products[itemIndex].quantity -= 1;
+    if (cart.products[itemIndex].quantity <= 0) {
+      cart.products.splice(itemIndex, 1);
+    }
+
+    await cart.save();
+    res.status(200).json({ message: "Product removed from cart", cart });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
 
 exports.checkIfInCart = async (req, res) => {
