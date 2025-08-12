@@ -1,5 +1,9 @@
 const Products = require('../models/Products');
 
+const Order = require("../models/Order");
+;
+
+
 exports.addProduct = async (req, res) => {
   try {
     const { name, description, price, category, featured, farmerId, quantity } = req.body;
@@ -202,6 +206,107 @@ exports.updateProduct = async (req, res) => {
   } catch (error) {
     console.error("Error updating product:", error);
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+
+exports.addToCart = async (req, res) => {
+  try {
+    const { userId, productId } = req.params;
+
+    // Find the product
+    const product = await Products.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // Check if order exists
+    let cart = await Order.findOne({ userId });
+
+    console.log("Cart", cart);
+
+
+    if (!cart) {
+      // Create new order with product details
+      cart = new Order({
+        userId,
+        products: [{
+          productId,
+          productName: product.name,   // must match your schema
+          thumbnail: product.thumbnail,    // must match your schema
+          quantity: 1,
+          price: product.price
+        }]
+      });
+    } else {
+      // Find if product exists in cart
+      const itemIndex = cart.products.findIndex(
+        p => p.productId.toString() === productId
+      );
+
+      if (itemIndex > -1) {
+        cart.products[itemIndex].quantity += 1;
+      } else {
+        cart.products.push({
+          productId,
+          productName: product.name,
+          thumbnail: product.thumbnail,
+          quantity: 1,
+          price: product.price
+        });
+      }
+    }
+
+    await cart.save();
+    res.status(200).json({ message: "Product added to cart", cart });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+exports.checkIfInCart = async (req, res) => {
+  try {
+    const { userId, productId } = req.params;
+
+    // Find the cart
+    const cart = await Order.findOne({ userId });
+
+    if (!cart) {
+      return res.status(200).json({ inCart: false });
+    }
+
+    // Check if product exists in the cart
+    const inCart = cart.products.some(
+      p => p.productId.toString() === productId
+    );
+
+    res.status(200).json({ inCart });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+exports.getCartByUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const cart = await Order.findOne({ userId });
+
+    if (!cart) {
+      return res.status(200).json({ products: [] }); // empty cart
+    }
+
+    res.status(200).json({ products: cart.products });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
