@@ -54,7 +54,7 @@ exports.signupFarmer = async (req, res) => {
       return res.status(400).json({ error: 'Invalid crops format' });
     }
 
-    if (!fullName || !email || !password || !phoneNumber || !farmName || !farmLocation || !parsedCrops.length) {
+    if (!fullName || !email || !password || !phoneNumber || !farmName || !farmLocation) {
       return res.status(400).json({ error: 'All required fields must be filled' });
     }
 

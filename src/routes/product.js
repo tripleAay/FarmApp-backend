@@ -1,41 +1,35 @@
 const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const { addProduct } = require('../controllers/productController');
+const { CloudinaryStorage } = require('../views/cloudinary');
+const multer = require('../views/mutler');
+const cloudinary = require('cloudinary').v2;
+const { addProduct, getProductsByFarmerId, getAllProducts, getProductById, updateProduct, updateMissingQuantities, deleteProduct } = require('../controllers/productController');
+const upload = require('../views/mutler'); // ✅ keep only this
 
 const router = express.Router();
+// router.put('/update-missing-quantities', updateMissingQuantities);
 
-// Storage config
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, './uploads/');
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${Date.now()}-${file.fieldname}${ext}`);
-  },
-});
+router.post(
+  '/updateproduct/:farmerId/:id',
+  upload.fields([
+    { name: 'thumbnail', maxCount: 1 },
+    { name: 'images', maxCount: 5 }
+  ]),
+  updateProduct
+);
 
-// File filter (optional)
-const fileFilter = (req, file, cb) => {
-  if (
-    file.mimetype === 'image/jpeg' ||
-    file.mimetype === 'image/png' ||
-    file.mimetype === 'image/jpg'
-  ) {
-    cb(null, true);
-  } else {
-    cb(new Error('Unsupported file format'), false);
-  }
-};
+router.get("/farmer/:farmerId", getProductsByFarmerId);
+router.delete("/delete/:farmerId/:id", deleteProduct);
+router.post(
+  "/",
+  upload.fields([
+    { name: "thumbnail", maxCount: 1 },
+    { name: "images", maxCount: 5 }
+  ]),
+  addProduct
+);
 
-const upload = multer({
-  storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-  fileFilter: fileFilter,
-});
+router.get("/products/:id", getProductById);
+router.get("/user", getAllProducts);
 
-// Use controller directly
-router.post('/', upload.single('image'), addProduct);
 
 module.exports = router;

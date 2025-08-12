@@ -1,7 +1,9 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const authRoutes = require('./src/routes/auth'); // Corrected from authRoutes
+const authRoutes = require('./src/routes/auth');
+const farmerRoutes = require("./src/routes/farmer")
+const productRoutes = require('./src/routes/product')
 require('dotenv').config();
 const multer = require('multer');
 
@@ -10,7 +12,7 @@ const app = express();
 // Enable CORS for http://localhost:3000
 app.use(cors({
   origin: 'http://localhost:3000',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
@@ -27,6 +29,8 @@ app.use('/Uploads', express.static('Uploads'));
 
 // Mount auth routes under /api
 app.use('/api', authRoutes);
+app.use('/api/farmers', farmerRoutes);
+app.use('/api/products', productRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
