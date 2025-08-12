@@ -264,6 +264,76 @@ exports.addToCart = async (req, res) => {
   }
 };
 
+exports.updateCartQuantity = async (req, res) => {
+  try {
+    const { userId, productId, action } = req.params; // action can be 'add' or 'remove'
+
+    // Find the product
+
+    const product = await Products.findById(productId);
+    if (!product) {
+      return res.status(406).json({ message: "Product not found" });
+    }
+
+    // Check if order exists
+    let cart = await Order.findOne({ userId });
+
+    if (!cart) {
+      if (action === "add") {
+        // Create new order with product details
+        cart = new Order({
+          userId,
+          products: [{
+            productId,
+            productName: product.name,
+            thumbnail: product.thumbnail,
+            quantity: 1,
+            price: product.price
+          }]
+        });
+      } else {
+        return res.status(400).json({ message: "Cart not found for removal" });
+      }
+    } else {
+      // Find if product exists in cart
+      const itemIndex = cart.products.findIndex(
+        p => p.productId.toString() === productId
+      );
+
+      if (itemIndex > -1) {
+        if (action === "add") {
+          cart.products[itemIndex].quantity += 1;
+        } else if (action === "remove") {
+          cart.products[itemIndex].quantity -= 1;
+          if (cart.products[itemIndex].quantity <= 0) {
+            cart.products.splice(itemIndex, 1); // remove product if quantity is zero or less
+          }
+        }
+      } else {
+        if (action === "add") {
+          cart.products.push({
+            productId,
+            productName: product.name,
+            thumbnail: product.thumbnail,
+            quantity: 1,
+            price: product.price
+          });
+        } else {
+          return res.status(400).json({ message: "Product not found in cart for removal" });
+        }
+      }
+    }
+
+    await cart.save();
+    res.status(200).json({ message: "Cart updated", cart });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
 
 exports.checkIfInCart = async (req, res) => {
   try {
