@@ -3,7 +3,7 @@ const User = require("../models/User")
 
 exports.getUserProfile = async (req, res) => {
     try {
-        const userId = req.params.id;
+        const userId = req.params.userId;
 
         if (!userId) {
             return res.status(400).json({ message: "user ID is required" });
