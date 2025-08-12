@@ -143,8 +143,7 @@ exports.updateProduct = async (req, res) => {
   try {
     const { farmerId, id } = req.params;
 
-    console.log("BODY:", req.body);
-    console.log("FILES:", req.files);
+
 
     // Find the product
     const product = await Products.findOne({ _id: id, farmerId });
@@ -223,7 +222,6 @@ exports.addToCart = async (req, res) => {
     // Check if order exists
     let cart = await Order.findOne({ userId });
 
-    console.log("Cart", cart);
 
 
     if (!cart) {
