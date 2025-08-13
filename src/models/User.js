@@ -7,6 +7,8 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true, select: false },
   phoneNumber: { type: String, required: true },
   role: { type: String, default: 'buyer' },
+  deliveryAddress: { type: String },
+
   profilePicture: { type: String },
 });
 

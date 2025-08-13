@@ -3,6 +3,11 @@ const Products = require('../models/Products');
 const Order = require("../models/Order");
 ;
 
+const User = require("../models/User");
+;
+
+const Cart = require("../models/Cart")
+
 
 exports.addProduct = async (req, res) => {
   try {
@@ -220,13 +225,13 @@ exports.addToCart = async (req, res) => {
     }
 
     // Check if order exists
-    let cart = await Order.findOne({ userId });
+    let cart = await Cart.findOne({ userId });
 
 
 
     if (!cart) {
-      // Create new order with product details
-      cart = new Order({
+      // Create new Cart with product details
+      cart = new Cart({
         userId,
         products: [{
           productId,
@@ -276,12 +281,12 @@ exports.updateCartQuantity = async (req, res) => {
     }
 
     // Check if order exists
-    let cart = await Order.findOne({ userId });
+    let cart = await Cart.findOne({ userId });
 
     if (!cart) {
       if (action === "add") {
-        // Create new order with product details
-        cart = new Order({
+        // Create new Cart with product details
+        cart = new Cart({
           userId,
           products: [{
             productId,
@@ -338,7 +343,7 @@ exports.removeFromCart = async (req, res) => {
     const { userId, productId } = req.params;
 
     // Find the cart for the user
-    let cart = await Order.findOne({ userId });
+    let cart = await Cart.findOne({ userId });
     if (!cart) {
       return res.status(400).json({ message: "Cart not found" });
     }
@@ -367,13 +372,60 @@ exports.removeFromCart = async (req, res) => {
   }
 };
 
+exports.placeOrder = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ message: "Buyer ID is required" });
+    }
+
+    // 1. Find the user's cart
+    const cart = await Cart.findOne({ userId });
+    if (!cart || cart.products.length === 0) {
+      return res.status(406).json({ message: "Cart is empty or not found" });
+    }
+
+    // 2. Calculate total price
+    const totalPrice = cart.products.reduce(
+      (total, item) => total + (item.price * item.quantity),
+      0
+    );
+
+    // 3. Create a new order
+    const newOrder = new Order({
+      userId: cart.userId,
+      products: cart.products,
+      Total: totalPrice,
+      totalPrice,
+      status: "Pending",
+      paymentMethod: "Payment on Delivery",
+    });
+
+    await newOrder.save();
+
+    // 4. Clear the cart
+    cart.products = [];
+    cart.Total = 0;
+    await cart.save();
+
+    res.status(200).json({
+      message: "Order placed successfully. Kindly wait for the farmer to approve.",
+      order: newOrder
+    });
+
+  } catch (error) {
+    console.error("Error placing order:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
 exports.checkIfInCart = async (req, res) => {
   try {
     const { userId, productId } = req.params;
 
     // Find the cart
-    const cart = await Order.findOne({ userId });
+    const cart = await Cart.findOne({ userId });
 
     if (!cart) {
       return res.status(200).json({ inCart: false });
@@ -397,7 +449,7 @@ exports.getCartByUser = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const cart = await Order.findOne({ userId });
+    const cart = await Cart.findOne({ userId });
 
     if (!cart) {
       return res.status(200).json({ products: [] }); // empty cart
@@ -413,44 +465,30 @@ exports.getCartByUser = async (req, res) => {
 
 
 
-exports.updateMissingReviews = async (req, res) => {
+exports.addMissingDeliveryAddress = async (req, res) => {
   try {
-    const defaultReviews = [
-      {
-        reviewer: "John Doe",
-        rating: 5,
-        comment: "Excellent product! High quality and fast delivery.",
-        date: new Date()
-      },
-      {
-        reviewer: "Jane Smith",
-        rating: 4,
-        comment: "Very good product, just a little improvement needed on packaging.",
-        date: new Date()
-      }
-    ];
-
-    const result = await Products.updateMany(
+    const result = await User.updateMany(
       {
         $or: [
-          { reviews: { $exists: false } },   // reviews field doesn't exist
-          { reviews: null },                 // null value
-          { reviews: { $size: 0 } }          // empty array
+          { deliveryAddress: { $exists: false } }, // doesn't exist
+          { deliveryAddress: null },               // null value
+          { deliveryAddress: "" }                  // empty string
         ]
       },
-      { $set: { reviews: defaultReviews } }
+      { $set: { deliveryAddress: "" } } // or you could use {} if it's an object
     );
 
     res.status(200).json({
-      message: 'Missing reviews added successfully',
+      message: 'Missing deliveryAddress field added successfully',
       matchedCount: result.matchedCount,
       modifiedCount: result.modifiedCount,
     });
   } catch (error) {
-    console.error('Error updating missing reviews:', error);
+    console.error('Error adding deliveryAddress:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
+
 
 
 

@@ -2,11 +2,11 @@ const express = require('express');
 const { CloudinaryStorage } = require('../views/cloudinary');
 const multer = require('../views/mutler');
 const cloudinary = require('cloudinary').v2;
-const { addProduct, getProductsByFarmerId, getAllProducts, getProductById, updateProduct, updateMissingQuantities, deleteProduct, updateMissingReviews, addToCart, checkIfInCart, getCartByUser, updateCartQuantity, removeFromCart } = require('../controllers/productController');
+const { addProduct, getProductsByFarmerId, getAllProducts, getProductById, updateProduct, updateMissingQuantities, deleteProduct, updateMissingReviews, addToCart, checkIfInCart, getCartByUser, updateCartQuantity, removeFromCart, placeOrder, addMissingDeliveryAddress } = require('../controllers/productController');
 const upload = require('../views/mutler'); // ✅ keep only this
 
 const router = express.Router();
-// router.put('/update-missing-quantities', updateMissingReviews);
+// router.put('/update-missing-quantities', addMissingDeliveryAddress);
 
 router.post(
   '/updateproduct/:farmerId/:id',
@@ -35,6 +35,7 @@ router.get("/user", getAllProducts);
 router.get("/cart/:userId", getCartByUser);
 router.patch("/cart/update/:userId/:productId/:action", updateCartQuantity);
 router.patch("/cart/remove/:userId/:productId", removeFromCart);
+router.post("/place-order/:userId", placeOrder)
 
 
 

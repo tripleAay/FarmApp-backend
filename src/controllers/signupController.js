@@ -7,7 +7,7 @@ exports.buyerSignup = async (req, res) => {
       body: req.body,
       file: req.file,
     });
-    const { fullName, email, password, phoneNumber } = req.body;
+    const { fullName, email, password, phoneNumber, deliveryAddress } = req.body;
 
     if (!fullName || !email || !password || !phoneNumber) {
       return res.status(400).json({ error: 'All required fields must be provided' });
@@ -24,6 +24,7 @@ exports.buyerSignup = async (req, res) => {
       password,
       phoneNumber,
       role: 'buyer',
+      deliveryAddress,
       profilePicture: req.file ? `/Uploads/${req.file.filename}` : null,
     });
 
