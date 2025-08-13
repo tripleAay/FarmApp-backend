@@ -505,6 +505,47 @@ exports.getOrderById = async (req, res) => {
 
 
 
+
+exports.uploadPaymentProof = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    if (!orderId) {
+      return res.status(400).json({ message: 'Order ID is required' });
+    }
+
+    // Multer will put the file in req.file if using .single()
+    if (!req.file) {
+      return res.status(400).json({ message: 'Payment proof image is required' });
+    }
+
+    const paymentImagePath = req.file.path; // path saved by Multer
+
+    const order = await Order.findByIdAndUpdate(
+      orderId,
+      { paymentImage: paymentImagePath },
+      { new: true }
+    );
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    res.status(200).json({
+      message: 'Payment proof uploaded successfully',
+      order
+    });
+
+  } catch (error) {
+    console.error('Error uploading payment proof:', error);
+    res.status(500).json({ message: 'Error uploading payment proof', error: error.message });
+  }
+};
+
+
+
+
+
 exports.addMissingFarmerId = async (req, res) => {
   try {
     const result = await Order.updateMany(
