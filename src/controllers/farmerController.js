@@ -167,7 +167,9 @@ exports.getFarmerOrders = async (req, res) => {
 
 
 // controllers/orderController.js
-
+function generateTransactionId() {
+    return "TXN-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
+}
 
 exports.updateFarmerOrdersStatus = async (req, res) => {
     try {
@@ -177,12 +179,34 @@ exports.updateFarmerOrdersStatus = async (req, res) => {
             return res.status(400).json({ message: "No updates provided" });
         }
 
-        const bulkOps = updates.map(update => ({
-            updateOne: {
-                filter: { _id: new mongoose.Types.ObjectId(update.orderId) },
-                update: { $set: { status: update.status } }
+        const bulkOps = updates.map(update => {
+            const updateFields = { status: update.status };
+
+            // Apply extra rules based on status
+            if (update.status === "Shipped") {
+                // Set same-day delivery time (e.g., 6 PM today)
+                const deliveryDate = new Date();
+                deliveryDate.setHours(18, 0, 0, 0); // Today at 6 PM
+                updateFields.dateToBeDelivered = deliveryDate;
+                updateFields.approved = true;
+                updateFields.paid = true;
+                updateFields.transactionId = generateTransactionId();
             }
-        }));
+            else if (update.status === "Delivered") {
+                updateFields.dateDelivered = new Date();
+                updateFields.transactionId = generateTransactionId();
+            }
+            else if (update.status === "Cancelled") {
+                updateFields.transactionId = generateTransactionId();
+            }
+
+            return {
+                updateOne: {
+                    filter: { _id: new mongoose.Types.ObjectId(update.orderId) },
+                    update: { $set: updateFields }
+                }
+            };
+        });
 
         const result = await Order.bulkWrite(bulkOps);
 
@@ -196,6 +220,7 @@ exports.updateFarmerOrdersStatus = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
 
 
 
