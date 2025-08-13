@@ -1,3 +1,5 @@
+const mongoose = require('mongoose');
+
 const Products = require('../models/Products');
 
 const Order = require("../models/Order");
@@ -5,6 +7,7 @@ const Order = require("../models/Order");
 
 const User = require("../models/User");
 ;
+
 
 const Cart = require("../models/Cart")
 
@@ -224,25 +227,26 @@ exports.addToCart = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    // Check if order exists
+    // Check if cart exists
     let cart = await Cart.findOne({ userId });
 
-
+    const productData = {
+      productId,
+      productName: product.name,       // matches schema
+      thumbnail: product.thumbnail,    // matches schema
+      quantity: 1,
+      price: product.price,
+      farmerId: product.farmerId
+    };
 
     if (!cart) {
-      // Create new Cart with product details
+      // Create new cart with product details
       cart = new Cart({
         userId,
-        products: [{
-          productId,
-          productName: product.name,   // must match your schema
-          thumbnail: product.thumbnail,    // must match your schema
-          quantity: 1,
-          price: product.price
-        }]
+        products: [productData]
       });
     } else {
-      // Find if product exists in cart
+      // Check if product already exists in cart
       const itemIndex = cart.products.findIndex(
         p => p.productId.toString() === productId
       );
@@ -250,13 +254,7 @@ exports.addToCart = async (req, res) => {
       if (itemIndex > -1) {
         cart.products[itemIndex].quantity += 1;
       } else {
-        cart.products.push({
-          productId,
-          productName: product.name,
-          thumbnail: product.thumbnail,
-          quantity: 1,
-          price: product.price
-        });
+        cart.products.push(productData);
       }
     }
 
@@ -268,6 +266,7 @@ exports.addToCart = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 exports.updateCartQuantity = async (req, res) => {
   try {
@@ -464,30 +463,72 @@ exports.getCartByUser = async (req, res) => {
 };
 
 
-
-exports.addMissingDeliveryAddress = async (req, res) => {
+exports.getOrderByUser = async (req, res) => {
   try {
-    const result = await User.updateMany(
+    const { userId } = req.params;
+
+    const orders = await Order.find({ userId });
+
+    if (!orders) {
+      return res.status(200).json({ products: [] }); // empty orders
+    }
+
+    res.status(200).json({ message: "Orders Fetched successfully", orders });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.getOrderById = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    // Validate MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ message: 'Invalid order ID format' });
+    }
+
+    const order = await Order.findById(orderId);
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    res.status(200).json({ message: 'Order fetched successfully', order });
+  } catch (err) {
+    console.error('Error fetching order:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+
+
+exports.addMissingFarmerId = async (req, res) => {
+  try {
+    const result = await Order.updateMany(
       {
         $or: [
-          { deliveryAddress: { $exists: false } }, // doesn't exist
-          { deliveryAddress: null },               // null value
-          { deliveryAddress: "" }                  // empty string
+          { farmerId: { $exists: false } }, // field doesn't exist
+          { farmerId: null },               // null value
+          { farmerId: "" }                  // empty string
         ]
       },
-      { $set: { deliveryAddress: "" } } // or you could use {} if it's an object
+      { $set: { farmerId: "68999c255001060d5bf5e37e" } }
     );
 
     res.status(200).json({
-      message: 'Missing deliveryAddress field added successfully',
+      message: 'Missing farmerId added successfully',
       matchedCount: result.matchedCount,
       modifiedCount: result.modifiedCount,
     });
   } catch (error) {
-    console.error('Error adding deliveryAddress:', error);
+    console.error('Error adding farmerId:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
+
 
 
 

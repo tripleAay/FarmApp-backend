@@ -2,6 +2,7 @@ const Farmer = require('../models/Farmer');
 const Order = require('../models/Order');
 const Product = require('../models/Products');
 const User = require("../models/User");
+const mongoose = require("mongoose");
 
 
 exports.getFarmerProfile = async (req, res) => {
@@ -110,51 +111,101 @@ exports.getFarmerStats = async (req, res) => {
 };
 
 
+// controllers/orderController.js
 exports.getFarmerOrders = async (req, res) => {
     try {
-        const farmerId = req.params.farmerId;
+        const { farmerId } = req.params;
 
         if (!farmerId) {
             return res.status(400).json({ message: "Farmer ID is required" });
         }
 
-        // Find all products that belong to this farmer
+        // Get all products owned by this farmer
         const farmerProducts = await Product.find({ farmerId }).select("_id");
         const farmerProductIds = farmerProducts.map(p => p._id.toString());
 
-        if (farmerProductIds.length === 0) {
+        if (!farmerProductIds.length) {
             return res.json({ orders: [] });
         }
 
-        // Find all orders that contain at least one product from this farmer
+        // Get all orders containing these products
         const orders = await Order.find({
             "products.productId": { $in: farmerProductIds }
-        })
-            .populate("userId", "name") // buyer's name
-            .sort({ orderedDate: -1 });
+        }).sort({ orderedDate: -1 });
 
-        // Format the response
-        const formattedOrders = orders.map(order => {
-            const farmerItems = order.products.filter(p =>
-                farmerProductIds.includes(p.productId.toString())
-            );
+        // Get buyer names
+        const userIds = [...new Set(orders.map(o => o.userId?.toString()))];
+        const users = await User.find({ _id: { $in: userIds } }, { fullName: 1 });
+        const userMap = users.reduce((acc, user) => {
+            acc[user._id.toString()] = user.fullName;
+            return acc;
+        }, {});
 
-            return farmerItems.map(item => ({
-                product: item.productName,
-                buyer: order.userId?.name || "N/A",
-                quantity: item.quantity,
-                totalPrice: `₦${(item.price * item.quantity).toLocaleString("en-NG")}`,
-                orderDate: order.orderedDate,
-                status: order.status || "Pending"
-            }));
-        }).flat();
+        // Flatten orders so each product is a separate item
+        const formattedOrders = orders.flatMap(order =>
+            order.products
+                .filter(p => farmerProductIds.includes(p.productId.toString()))
+                .map(item => ({
+                    orderId: order._id,
+                    productId: item.productId, // unique per product
+                    product: item.productName,
+                    buyer: userMap[order.userId?.toString()] || "N/A",
+                    quantity: item.quantity,
+                    totalPrice: item.price * item.quantity,
+                    orderDate: order.orderedDate,
+                    status: order.status  // product-specific status
+                }))
+        );
 
-        res.json({ orders: formattedOrders });
+        res.json({ orders: formattedOrders, cart: orders });
 
     } catch (error) {
-        console.error(error);
+        console.error("Error fetching farmer orders:", error);
         res.status(500).json({ message: error.message });
     }
 };
+
+
+// controllers/orderController.js
+
+
+exports.updateFarmerOrdersStatus = async (req, res) => {
+    try {
+        const { updates } = req.body;
+        console.log("Received Updates", updates);
+
+        if (!Array.isArray(updates) || updates.length === 0) {
+            return res.status(400).json({ message: "No updates provided" });
+        }
+
+        const bulkOps = updates.map(update => ({
+            updateOne: {
+                filter: { _id: new mongoose.Types.ObjectId(update.orderId) },
+                update: { $set: { status: update.status } }
+            }
+        }));
+
+        const result = await Order.bulkWrite(bulkOps);
+
+        res.json({
+            message: "Order statuses updated successfully",
+            result
+        });
+
+    } catch (error) {
+        console.error("Error updating order statuses:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+
+
+
+
+
+
+
+
+
 
 
