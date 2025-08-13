@@ -172,7 +172,6 @@ exports.getFarmerOrders = async (req, res) => {
 exports.updateFarmerOrdersStatus = async (req, res) => {
     try {
         const { updates } = req.body;
-        console.log("Received Updates", updates);
 
         if (!Array.isArray(updates) || updates.length === 0) {
             return res.status(400).json({ message: "No updates provided" });
