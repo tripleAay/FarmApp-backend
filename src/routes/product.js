@@ -1,12 +1,9 @@
 const express = require('express');
-const { CloudinaryStorage } = require('../views/cloudinary');
-const multer = require('../views/mutler');
-const cloudinary = require('cloudinary').v2;
 const { addProduct, getProductsByFarmerId, getAllProducts, getProductById, updateProduct, updateMissingQuantities, deleteProduct, updateMissingReviews, addToCart, checkIfInCart, getCartByUser, updateCartQuantity, removeFromCart, placeOrder, addMissingDeliveryAddress, getOrderByUser, getOrderById, addMissingFarmerId, uploadPaymentProof } = require('../controllers/productController');
 const upload = require('../views/mutler'); // ✅ keep only this
 
 const router = express.Router();
-// router.put('/update-missing-quantities', addMissingFarmerId);
+router.put('/update-missing-quantities', addMissingFarmerId);
 
 router.post(
   '/updateproduct/:farmerId/:id',

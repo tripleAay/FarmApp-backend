@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
-
+const cloudinary = require("../views/cloudinary");
+const fs = require("fs");
 const Products = require('../models/Products');
+const upload = require('../views/mutler'); // ✅ keep only this
+
 
 const Order = require("../models/Order");
 ;
@@ -17,16 +20,47 @@ exports.addProduct = async (req, res) => {
     const { name, description, price, category, featured, farmerId, quantity } = req.body;
 
     if (!name || !price || !req.files?.thumbnail) {
-      return res.status(400).json({ message: 'Name, price, and thumbnail are required' });
+      return res.status(400).json({ message: "Name, price, and thumbnail are required" });
     }
 
-    const thumbNailUrl = req.files.thumbnail[0].path;
-    const imageUrls = req.files.images ? req.files.images.map(file => file.path) : [];
+    // ✅ Upload thumbnail to Cloudinary
+    if (req.files?.thumbnail?.length > 0) {
+      const thumbResult = await cloudinary.uploader.upload(
+        req.files.thumbnail[0].path,
+        {
+          folder: "products/thumbnails",
+          resource_type: "image", // ✅ ensures only images
+        }
+      );
 
-    if (imageUrls.length > 5) {
-      return res.status(400).json({ message: 'Maximum 5 images allowed' });
+      product.thumbnail = thumbResult.secure_url;
     }
 
+    const thumbNailUrl = thumbResult.secure_url;
+
+    // Cleanup local file
+    fs.unlinkSync(req.files.thumbnail[0].path);
+
+    // ✅ Upload product images (if provided)
+    let imageUrls = [];
+    if (req.files.images) {
+      if (req.files.images.length > 5) {
+        return res.status(400).json({ message: "Maximum 5 images allowed" });
+      }
+
+      for (const file of req.files.images) {
+        const imgResult = await cloudinary.uploader.upload(file.path, {
+          folder: "products/images",
+          resource_type: "image",
+        });
+        imageUrls.push(imgResult.secure_url);
+
+        // Cleanup local file
+        fs.unlinkSync(file.path);
+      }
+    }
+
+    // ✅ Create product with Cloudinary URLs
     const product = new Products({
       name,
       description,
@@ -36,16 +70,18 @@ exports.addProduct = async (req, res) => {
       images: imageUrls,
       featured: featured || false,
       farmerId,
-      quantity
+      quantity,
     });
 
     await product.save();
-    res.status(201).json({ message: 'Product added successfully', product });
+
+    res.status(201).json({ message: "Product added successfully", product });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error adding product', error: error.message });
+    console.error("Error adding product:", error);
+    res.status(500).json({ message: "Error adding product", error: error.message });
   }
 };
+
 
 exports.getProductsByFarmerId = async (req, res) => {
   try {
@@ -151,8 +187,6 @@ exports.updateProduct = async (req, res) => {
   try {
     const { farmerId, id } = req.params;
 
-
-
     // Find the product
     const product = await Products.findOne({ _id: id, farmerId });
     if (!product) {
@@ -175,10 +209,14 @@ exports.updateProduct = async (req, res) => {
       product.thumbnail = null;
     }
 
-    // ✅ Handle new thumbnail (Cloudinary URL from multer upload)
+    // ✅ Handle new thumbnail (upload to Cloudinary)
     if (req.files?.thumbnail?.length > 0) {
-      product.thumbnail = req.files.thumbnail[0].path; // multer + Cloudinary
+      const uploadedThumb = await cloudinary.uploader.upload(req.files.thumbnail[0].path, {
+        folder: "products/thumbnails",
+      });
+      product.thumbnail = uploadedThumb.secure_url;
     }
+
 
     // ✅ Handle deleted images
     if (req.body.deletedImages) {
@@ -192,10 +230,14 @@ exports.updateProduct = async (req, res) => {
       }
     }
 
-    // ✅ Handle new images (Cloudinary URLs from multer upload)
+    // ✅ Handle new images (upload to Cloudinary)
     if (req.files?.images?.length > 0) {
-      const newImgs = req.files.images.map((file) => file.path);
-      product.images.push(...newImgs);
+      for (const file of req.files.images) {
+        const uploadedImg = await cloudinary.uploader.upload(file.path, {
+          folder: "products/images",
+        });
+        product.images.push(uploadedImg.secure_url);
+      }
     }
 
     // ✅ Limit images
@@ -215,6 +257,8 @@ exports.updateProduct = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+
 
 
 exports.addToCart = async (req, res) => {
@@ -503,80 +547,82 @@ exports.getOrderById = async (req, res) => {
   }
 };
 
-
-
-
 exports.uploadPaymentProof = async (req, res) => {
   try {
     const { orderId } = req.params;
 
     if (!orderId) {
-      return res.status(400).json({ message: 'Order ID is required' });
+      return res.status(400).json({ message: "Order ID is required" });
     }
 
-    // Multer will put the file in req.file if using .single()
     if (!req.file) {
-      return res.status(400).json({ message: 'Payment proof image is required' });
+      return res.status(400).json({ message: "Payment proof image is required" });
     }
 
-    const paymentImagePath = req.file.path; // path saved by Multer
+    if (req.files?.thumbnail?.length > 0) {
+      const thumbResult = await cloudinary.uploader.upload(
+        req.files.thumbnail[0].path,
+        {
+          folder: "products/thumbnails",
+          resource_type: "image", // optional but safe
+        }
+      );
+
+      product.thumbnail = thumbResult.secure_url;
+    }
 
     const order = await Order.findByIdAndUpdate(
       orderId,
-      { paymentImage: paymentImagePath },
+      { paymentImage: uploadedImage.secure_url }, // ✅ use secure URL
       { new: true }
     );
 
     if (!order) {
-      return res.status(404).json({ message: 'Order not found' });
+      return res.status(404).json({ message: "Order not found" });
     }
 
     res.status(200).json({
-      message: 'Payment proof uploaded successfully',
-      order
+      message: "Payment proof uploaded successfully",
+      order,
     });
-
   } catch (error) {
-    console.error('Error uploading payment proof:', error);
-    res.status(500).json({ message: 'Error uploading payment proof', error: error.message });
+    console.error("Error uploading payment proof:", error);
+    res.status(500).json({
+      message: "Error uploading payment proof",
+      error: error.message,
+    });
   }
 };
-
-
-
 
 
 exports.addMissingFarmerId = async (req, res) => {
   try {
-    const result = await Order.updateMany(
-      {
-        $or: [
-          { farmerId: { $exists: false } }, // field doesn't exist
-          { farmerId: null },               // null value
-          { farmerId: "" }                  // empty string
-        ]
-      },
-      { $set: { farmerId: "68999c255001060d5bf5e37e" } }
-    );
+    // Find all products missing productId
+    const products = await Products.find({ productId: { $exists: false } });
+
+    for (const product of products) {
+      // Set productId to the current _id
+      product.productId = product._id;
+
+      // Ensure farmerId exists
+      if (!product.farmerId) {
+        product.farmerId = mongoose.Types.ObjectId("68999c255001060d5bf5e37e");
+      }
+
+      // Remove invalid reviews
+      product.reviews = product.reviews.filter(
+        (r) => r && r.user && r.name && r.comment && r.rating
+      );
+
+      await product.save();
+    }
 
     res.status(200).json({
-      message: 'Missing farmerId added successfully',
-      matchedCount: result.matchedCount,
-      modifiedCount: result.modifiedCount,
+      message: "All products fixed successfully",
+      totalProductsUpdated: products.length,
     });
   } catch (error) {
-    console.error('Error adding farmerId:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error fixing products:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
-
-
-
-
-
-
-
-
-
-

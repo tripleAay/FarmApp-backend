@@ -31,7 +31,11 @@ const productSchema = new mongoose.Schema({
   farmerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Farmer' },
 
   // Reviews as array
-  reviews: [reviewSchema],
+  reviews: {
+    type: [reviewSchema],
+    default: []   // ensures empty array by default
+  },
+
 
   // Default stats
   averageRating: { type: Number, default: 0 },

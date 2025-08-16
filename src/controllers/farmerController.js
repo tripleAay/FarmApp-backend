@@ -3,6 +3,9 @@ const Order = require('../models/Order');
 const Product = require('../models/Products');
 const User = require("../models/User");
 const mongoose = require("mongoose");
+const cloudinary = require("../views/cloudinary");
+const upload = require('../views/mutler'); // ✅ keep only this
+
 
 
 exports.getFarmerProfile = async (req, res) => {
@@ -110,9 +113,8 @@ exports.getFarmerStats = async (req, res) => {
     }
 };
 
-
-// controllers/orderController.js
 exports.getFarmerOrders = async (req, res) => {
+
     try {
         const { farmerId } = req.params;
 
@@ -164,7 +166,6 @@ exports.getFarmerOrders = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-
 
 // controllers/orderController.js
 function generateTransactionId() {
@@ -220,6 +221,87 @@ exports.updateFarmerOrdersStatus = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+
+exports.getBuyerProfile = async (req, res) => {
+    try {
+        const buyerId = req.params.id;
+
+        if (!buyerId) {
+            return res.status(400).json({ message: "Buyer ID is required" });
+        }
+
+        const foundBuyer = await User.findById(buyerId).select('-password');
+
+        if (!foundBuyer) {
+            return res.status(404).json({ message: "Buyer not found" });
+        }
+
+        res.status(200).json({
+            foundBuyer,
+            message: "Buyer Profile fetched successfully!!!"
+        });
+
+    } catch (error) {
+        console.error("Error fetching Buyer profile:", error);
+        res.status(500).json({
+            message: "Error fetching Buyer profile",
+            error: error.message
+        });
+    }
+};
+
+
+exports.updateProfile = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { fullName, email, phoneNumber, deliveryAddress } = req.body;
+
+        // Find user
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Update text fields
+        if (fullName) user.fullName = fullName;
+        if (email) user.email = email;
+        if (phoneNumber) user.phoneNumber = phoneNumber;
+        if (deliveryAddress) user.deliveryAddress = deliveryAddress;
+
+        if (req.file) {
+            if (user.profilePicture) {
+                const publicId = user.profilePicture.split("/").pop().split(".")[0]; // extract publicId
+                await cloudinary.uploader.destroy(`profile_pictures/${publicId}`);
+            }
+
+            const uploadedImage = await cloudinary.uploader.upload(req.file.path, {
+                folder: "profile_pictures",
+            });
+            user.profilePicture = uploadedImage.secure_url;
+        }
+
+
+        await user.save();
+
+        res.status(200).json({
+            message: "Profile updated successfully",
+            user: {
+                fullName: user.fullName,
+                email: user.email,
+                phoneNumber: user.phoneNumber,
+                deliveryAddress: user.deliveryAddress,
+                profilePicture: user.profilePicture, // ✅ Now a Cloudinary URL
+            },
+        });
+    } catch (error) {
+        console.error("Error updating profile:", error);
+        res.status(500).json({ message: "Error updating profile", error: error.message });
+    }
+};
+
+
+
 
 
 
