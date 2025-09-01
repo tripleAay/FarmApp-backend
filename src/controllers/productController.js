@@ -24,22 +24,21 @@ exports.addProduct = async (req, res) => {
     }
 
     // ✅ Upload thumbnail to Cloudinary
+    let thumbNailUrl = "";
     if (req.files?.thumbnail?.length > 0) {
       const thumbResult = await cloudinary.uploader.upload(
         req.files.thumbnail[0].path,
         {
           folder: "products/thumbnails",
-          resource_type: "image", // ✅ ensures only images
+          resource_type: "image",
         }
       );
 
-      product.thumbnail = thumbResult.secure_url;
+      thumbNailUrl = thumbResult.secure_url;
+
+      // Cleanup local file
+      fs.unlinkSync(req.files.thumbnail[0].path);
     }
-
-    const thumbNailUrl = thumbResult.secure_url;
-
-    // Cleanup local file
-    fs.unlinkSync(req.files.thumbnail[0].path);
 
     // ✅ Upload product images (if provided)
     let imageUrls = [];
@@ -81,6 +80,7 @@ exports.addProduct = async (req, res) => {
     res.status(500).json({ message: "Error adding product", error: error.message });
   }
 };
+
 
 
 exports.getProductsByFarmerId = async (req, res) => {
