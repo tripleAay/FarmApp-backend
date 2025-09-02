@@ -197,12 +197,14 @@ exports.updateProduct = async (req, res) => {
     const allowedUpdates = ["name", "description", "price", "category", "quantity", "unit", "featured"];
     allowedUpdates.forEach((field) => {
       if (req.body[field] !== undefined) {
-        product[field] =
-          ["price", "quantity"].includes(field)
-            ? Number(req.body[field])
-            : req.body[field];
+        if (field === "price") {
+          product[field] = Number(req.body[field]);
+        } else {
+          product[field] = req.body[field];
+        }
       }
     });
+
 
     // ✅ Handle deleted thumbnail
     if (req.body.deletedThumbnail === "true") {
