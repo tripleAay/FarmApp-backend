@@ -31,7 +31,7 @@ router.get("/check-in-cart/:userId/:productId", checkIfInCart)
 router.get("/user", getAllProducts);
 router.get("/cart/:userId", getCartByUser);
 router.get("/order/:userId", getOrderByUser);
-router.ge("/similar", getSimilarProducts);
+router.get("/similar", getSimilarProducts);
 router.get("/orderinfo/:orderId", getOrderById);
 router.patch("/cart/update/:userId/:productId/:action", updateCartQuantity);
 router.patch("/cart/remove/:userId/:productId", removeFromCart);
