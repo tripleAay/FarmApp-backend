@@ -1,5 +1,5 @@
 const express = require('express');
-const { addProduct, getProductsByFarmerId, getAllProducts, getProductById, updateProduct, updateMissingQuantities, deleteProduct, updateMissingReviews, addToCart, checkIfInCart, getCartByUser, updateCartQuantity, removeFromCart, placeOrder, addMissingDeliveryAddress, getOrderByUser, getOrderById, addMissingFarmerId, uploadPaymentProof } = require('../controllers/productController');
+const { addProduct, getProductsByFarmerId, getAllProducts, getProductById, updateProduct, updateMissingQuantities, deleteProduct, updateMissingReviews, addToCart, checkIfInCart, getCartByUser, updateCartQuantity, removeFromCart, placeOrder, addMissingDeliveryAddress, getOrderByUser, getOrderById, addMissingFarmerId, uploadPaymentProof, getSimilarProducts } = require('../controllers/productController');
 const upload = require('../views/mutler'); // ✅ keep only this
 
 const router = express.Router();
@@ -31,6 +31,7 @@ router.get("/check-in-cart/:userId/:productId", checkIfInCart)
 router.get("/user", getAllProducts);
 router.get("/cart/:userId", getCartByUser);
 router.get("/order/:userId", getOrderByUser);
+router.ge("/similar", getSimilarProducts);
 router.get("/orderinfo/:orderId", getOrderById);
 router.patch("/cart/update/:userId/:productId/:action", updateCartQuantity);
 router.patch("/cart/remove/:userId/:productId", removeFromCart);

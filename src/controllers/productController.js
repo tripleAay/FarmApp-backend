@@ -628,3 +628,34 @@ exports.addMissingFarmerId = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+exports.getSimilarProducts = async (req, res) => {
+  try {
+    const { category, excludeId } = req.query;
+    const limit = parseInt(req.query.limit, 10) || 6;
+
+    if (!category) {
+      return res.status(400).json({ message: "Category is required" });
+    }
+
+
+    const products = await Products.find({
+      category,
+      _id: { $ne: excludeId } // exclude current product
+    })
+      .limit(limit)
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      similarProducts: products,
+      count: products.length,
+    });
+  } catch (error) {
+    console.error("Error fetching similar products:", error);
+    res.status(500).json({
+      message: "Error fetching similar products",
+      error: error.message
+    });
+  }
+};
+
